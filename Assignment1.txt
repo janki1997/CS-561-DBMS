@@ -1,0 +1,156 @@
+Name: Janki Patel 
+CWID: 10457365
+Subject: DAtabase Management System
+
+Q1:
+
+with Q1 as
+(
+select cust, min(quant) min_q, max(quant) max_q, avg(quant) avg_q
+from sales
+	group by cust
+),
+Q2 as
+(
+select Q1.cust,Q1.min_q,s.month min_month,s.day min_day,s.year min_year,s.state min_st,Q1.max_q,Q1.avg_q,s.prod min_prod
+	from Q1, sales s
+	where Q1.cust = s.cust
+	and Q1.min_q = s.quant
+)
+
+select Q2.cust,Q2.min_q,Q2.min_st,Q2.min_prod,Q2.min_month,Q2.min_day,Q2.min_year,
+       Q2.max_q,s1.prod max_prod,s1.state max_st,s1.month max_month,s1.day max_day,s1.year max_year,Q2.avg_q
+	   from Q2, sales s1
+	   where Q2.cust = s1.cust
+	   and Q2.max_q = s1.quant
+
+
+
+
+Q2:
+with jan_min as
+(
+	select cust,prod,min(quant) jan_min
+	from sales
+	where year>1999 and month = 1
+	group by cust,prod
+),
+jan as
+(
+	select j.cust,j.prod,j.jan_min,s.month,s.day,s.year
+	from jan_min j,sales s
+	where j.cust=s.cust
+	and j.prod=s.prod
+	and j.jan_min = s.quant
+),
+feb_max as
+(
+	select cust,prod,max(quant) feb_max
+	from sales
+	where year>1999 and month = 2
+	group by cust,prod
+),
+feb as
+(
+	select f.cust,f.prod,f.feb_max,s.month,s.day,s.year
+	from feb_max f,sales s
+	where f.cust=s.cust
+	and f.prod=s.prod
+	and f.feb_max = s.quant
+),
+
+mar_max as
+(
+	select cust,prod,max(quant) mar_max
+	from sales
+	where year>1999 and month = 3
+	group by cust,prod
+),
+mar as
+(
+	select m.cust,m.prod,m.mar_max,s.month,s.day,s.year
+	from mar_max m,sales s
+	where m.cust=s.cust
+	and m.prod=s.prod
+	and m.mar_max = s.quant
+)
+select cust,prod, jan.jan_min, jan.month, jan.day, jan.year,feb.feb_max, feb.month, feb.day, feb.year,  mar.mar_max, mar.month,mar.day, mar.year
+from (jan full outer join feb using (cust,prod))full outer join mar using(cust,prod)
+
+
+Q3:
+with query1 as
+(
+    select month as M, prod , sum (quant) as addition
+	from sales
+	group by month , prod
+	order by month, sum(quant)
+),
+query2 as 
+(
+	select M, max(addition) as MOST_POP_TOTAL_Q, min(addition) as LEAST_POP_TOTAL_Q
+	from query1
+	group by M
+)
+
+select y1.M as MONTH, x1.prod as MOST_POPULAR_PROD, y1.MOST_POP_TOTAL_Q,
+x2.prod as LEAST_POPULAR_PROD, y1.LEAST_POP_TOTAL_Q
+from query2 y1,query1 x1, query1 x2
+where (x1.M = y1.M and x1.addition=y1.MOST_POP_TOTAL_Q) 
+	   and (x2.M = y1.M and x2.addition=y1.LEAST_POP_TOTAL_Q)
+
+Q4:
+with query1 as
+(
+    select month as M, prod , sum (quant) as addition
+	from sales
+	group by month , prod
+),
+query2 as 
+(
+	select query1.prod, max(addition) as MAXIMUM_Q, min(addition) as MINIMUM_Q
+	from query1
+	group by query1.prod
+)
+
+select y1.prod as product, x1.M as MOST_POPULAR_MONTH, x2.M as LEAST_POPULAR_MONTH
+from query2 y1,query1 x1, query1 x2
+where (y1.prod = x1.prod and y1.MAXIMUM_Q=x1.addition) 
+	   and (y1.prod = x2.prod and y1.MINIMUM_Q=x2.addition)
+
+Q5:
+with query1 as (
+	select prod, cust, avg(quant) as ct_avg
+	from sales
+	where state = 'CT'
+	group by prod, cust
+), query2 as 
+(
+	select avg(s.quant) as nj_avg ,s.cust,s.prod
+	from query1 as ct, sales as s
+	where state = 'NJ'
+	group by s.prod,s.cust 
+), query3 as (
+	select avg(s.quant) as ny_avg ,s.cust,s.prod
+	from sales as s
+	where state = 'NY'
+	group by s.prod, s.cust
+), query4 as (
+	select avg(s.quant) as pa_avg, s.cust,s.prod
+	from  sales as s
+	where state = 'PA'  
+	group by s.prod, s.cust
+),
+query5 as (
+	select prod, cust, avg(quant) as avg_q, sum(quant) as total_q, count(prod) count_q
+	from sales
+	group by prod, cust
+
+)
+ select query1.cust, query1.prod, query1.ct_avg, query2.NJ_avg, query3.ny_avg, query4.pa_avg, query5.total_q, query5.count_q, query5.avg_q
+ from query5  left join query1 on query1.cust = query5.cust and query1.prod = query5.prod
+ left join query2 on query2.cust = query5.cust and query2.prod = query5.prod
+ left join query3 on query3.cust = query5.cust and query3.prod = query5.prod
+ left join query4 on query4.cust = query5.cust and query4.prod = query5.prod
+ 
+ 

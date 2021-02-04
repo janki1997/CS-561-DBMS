@@ -1,0 +1,146 @@
+Name: Janki patel
+CWID: 10457365
+
+Q1:
+
+with J1 as
+(
+	select cust, prod, state, month, round(avg(quant),0) as cust_avg 
+	from sales 
+	group by cust, prod, state, month
+),
+
+J2 as
+(
+	select J1.cust, J1.prod, J1.state, J1.month, J1.cust_avg, round(avg(s.quant),0) as  other_state_avg 
+	from J1, sales as s 
+	where J1.cust = s.cust and J1.prod = s.prod and J1.state != s.state and J1.month = s.month 
+	group by J1.cust, J1.prod, J1.state, J1.month, J1.cust_avg
+),
+
+J3 as
+(
+	select J1.cust, J1.prod, J1.state, J1.month, J1.cust_avg, round(avg(s.quant),0) as other_prod_avg 
+	from J1, sales as s 
+	where J1.cust = s.cust and J1.state = s.state and J1.month = s.month and J1.prod != s.prod 
+	group by J1.cust, J1.prod, J1.state, J1.month, J1.cust_avg
+),
+
+J4 as
+(
+	select J1.cust, J1.prod, J1.state, J1.month, J1.cust_avg, round(avg(s.quant),0) as other_month_avg 
+	from J1, sales as s 
+	where J1.cust = s.cust and J1.state = s.state and J1.month != s.month and J1.prod = s.prod 
+	group by J1.cust, J1.prod, J1.state, J1.month, J1.cust_avg
+)
+
+
+select J1.cust as customer, J1.prod as product, J1.state, J1.month, J1.cust_avg, J2.other_state_avg, J3.other_prod_avg, J4.other_month_avg 
+from (J1 full outer join J2 on J1.cust=J2.cust and J1.prod=J2.prod and J1.state=J2.state and J1.month = J2.month) full outer join J3 on J1.cust=J3.cust and J1.prod=J3.prod and J1.state=J3.state and J1.month = J3.month full outer join J4 on J1.cust=J4.cust and J1.prod=J4.prod and J1.state=J4.state and J1.month = J4.month 
+
+Q2:
+
+with J1 as
+(select cust,prod,state,
+ (case when month < 4 then '1'
+       when month < 7 then '2'
+  	   when month < 10 then '3'
+       when month < 13 then '4'
+   end
+ ) as quarter,quant
+ from sales
+),
+J2 as 
+( select cust,prod,state, quarter, round(avg(quant),0) as quant_avg
+ from J1
+ group by cust,prod,state,quarter
+),
+J3 as
+(select Ja.cust,Ja.prod,Ja.state,Jb.quarter, Jb.quant_avg
+ from J2 as Ja, J2 as Jb
+ where Ja.cust = Jb.cust and Ja.prod = Jb.prod and Ja.state = Jb.state
+ and case when Ja.quarter = '1' then Jb.quarter = '2'
+          when Ja.quarter = '2' then Jb.quarter = '3'
+          when Ja.quarter = '3' then Jb.quarter = '4'
+  end
+),
+J4 as
+( select Ja.cust, Ja.prod,Ja.state, Jb.quarter, Jb.quant_avg
+ from J2 as Ja, J2 as Jb
+ where Ja.cust = Jb.cust and Ja.prod =Jb.prod and Ja.state=Jb.state
+ and case when Ja.quarter = '2' then Jb.quarter = '1'
+          when Ja.quarter = '3' then Jb.quarter = '2'
+          when Ja.quarter = '4' then Jb.quarter = '3'
+     end
+),
+J5 as
+(select Ja.cust, Ja.prod,Ja.state, Ja.quarter, Jb.quant_avg
+ from J2 as Ja left join J3 as Jb
+ on Ja.cust = Jb.cust and Ja.prod = Jb.prod and Ja.state = Jb.state and Ja.quarter = Jb.quarter
+),
+J6 as 
+(select Ja.cust, Ja.prod,Ja.state, Ja.quarter, Jb.quant_avg
+ from J2 as Ja left join J4 as Jb
+ on Ja.cust = Jb.cust and Ja.prod = Jb.prod and Ja.state = Jb.state and Ja.quarter = Jb.quarter
+ )
+ select Ja.cust, Ja.prod,Ja.state,Ja.quarter,Ja.quant_avg as before_avg,Jb.quant_avg as after_avg
+ from J5 as Ja ,J6 as Jb
+ where Ja.cust = Jb.cust and Ja.prod = Jb.prod and Ja.state = Jb.state and Ja.quarter = Jb.quarter
+
+Q3:
+
+with J1 as
+(
+	select prod, quant 
+	from sales 
+),
+
+J2 as
+(
+	select prod, round((count(quant)/2)+1) as median 
+	from J1 
+	group by prod 
+),
+
+J3 as
+(
+	select Ja.prod, Ja.quant, count(Jb.quant) 
+	from J1 as Ja join J1 as Jb on Jb.quant <= Ja.quant and Ja.prod = Jb.prod 
+	group by Ja.prod, Ja.quant 
+)
+
+select J3.prod as product, J3.quant as "median quant" 
+from J3 join J2 on J3.prod = J2.prod and J3.count = J2.median
+
+Q4:
+
+with J1 as 
+(
+select cust, prod, "month", sum(quant) total
+from sales
+group by cust, prod, "month"
+),
+J2 as 
+(
+select cust, prod, sum(quant) prod_total
+from sales
+group by cust, prod
+),
+J3 as 
+(
+select Ja.cust, Ja.prod, Ja."month", Ja.total, sum(Jb.total) addition
+from J1 Ja 
+	left join J1 Jb on Ja.cust = Jb.cust and Ja.prod = Jb.prod and Ja.month >= Jb.month
+group by Ja.cust, Ja.prod, Ja."month", Ja.total
+),
+J4 as
+(
+select distinct Ja.cust, Ja.prod, Ja."month", Ja.total, Ja.addition,
+	(case when Ja.addition >= 0.75*Jb.prod_total then Ja."month" else null end) PURCHASED_75_BY_MONTH
+from J3 as Ja 
+	left join J2 as Jb on Ja.cust = Jb.cust and Ja.prod = Jb.prod
+)
+select cust CUSTOMER, prod PRODUCT, min(PURCHASED_75_BY_MONTH) "75%_PURCHASED_BY_MONTH"
+from J4
+group by cust, prod
+;
